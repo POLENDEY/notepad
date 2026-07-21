@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -18,6 +18,16 @@ const DEFAULT_SIZE = 16;
 const MIN_SIZE = 10;
 const MAX_SIZE = 72;
 const DEFAULT_HIGHLIGHT = "#fde68a";
+
+function sameNoteHtml(a: string, b: string) {
+  const norm = (html: string) =>
+    html
+      .replace(/\u00a0/g, " ")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  return norm(a) === norm(b);
+}
 
 type NoteEditorProps = {
   value?: string;
@@ -48,6 +58,7 @@ export function NoteEditor({
   const highlightId = useId();
   const [highlightColor, setHighlightColor] = useState(DEFAULT_HIGHLIGHT);
   const [sizeDraft, setSizeDraft] = useState(String(DEFAULT_SIZE));
+  const lastEmittedRef = useRef<string>("");
 
   const initial = useMemo(
     () => noteBodyToEditorHtml(value ?? defaultValue),
@@ -87,13 +98,20 @@ export function NoteEditor({
       Placeholder.configure({ placeholder }),
     ],
     content: initial,
+    parseOptions: {
+      preserveWhitespace: "full",
+    },
     editorProps: {
       attributes: {
         class: `note-editor-prose outline-none ${minHeightClass} ${editorClassName}`,
       },
     },
     onUpdate: ({ editor: ed }) => {
-      onChange?.(encodeNoteHtmlSpaces(ed.getHTML()));
+      // Emit raw HTML while typing — encoding nbsp on every keystroke
+      // rewrote controlled `value` and reset the cursor (broken spacebar).
+      const html = ed.getHTML();
+      lastEmittedRef.current = html;
+      onChange?.(html);
     },
     onSelectionUpdate: ({ editor: ed }) => {
       const sizeAttr = ed.getAttributes("textStyle").fontSize as
@@ -117,9 +135,13 @@ export function NoteEditor({
 
   useEffect(() => {
     if (!editor || value === undefined) return;
+    if (value === lastEmittedRef.current) return;
+    const current = editor.getHTML();
+    if (value === current || sameNoteHtml(value, current)) return;
     const next = noteBodyToEditorHtml(value);
-    if (next === editor.getHTML()) return;
-    editor.commands.setContent(next, { emitUpdate: false });
+    if (next === current || sameNoteHtml(next, current)) return;
+    editor.commands.setContent(next || "", { emitUpdate: false });
+    lastEmittedRef.current = next;
   }, [editor, value]);
 
   function applyFontSize(raw: string) {
