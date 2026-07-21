@@ -1,8 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f5f2;
+  --foreground: #1c1917;
+  --surface: #ffffff;
+  --muted: #78716c;
+  --line: #e7e5e4;
+  --accent: #44403c;
+  color-scheme: light;
 }
 
 @theme inline {
@@ -14,13 +19,143 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #141210;
+    --foreground: #f5f5f4;
+    --surface: #1c1917;
+    --muted: #a8a29e;
+    --line: #292524;
+    --accent: #e7e5e4;
+    color-scheme: dark;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
+
+/* Native form controls: keep typed + dropdown text readable.
+   Do NOT set button { color: inherit } — it overrides light-on-dark / dark-on-light buttons. */
+input,
+textarea,
+select {
+  color: inherit;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #a8a29e;
+  opacity: 1;
+}
+
+select option,
+select optgroup {
+  background-color: #ffffff;
+  color: #1c1917;
+}
+
+@media (prefers-color-scheme: dark) {
+  select option,
+  select optgroup {
+    background-color: #1c1917;
+    color: #fafaf9;
+  }
+}
+
+@layer components {
+  .page-shell {
+    @apply mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8 lg:py-10;
+  }
+
+  .page-title {
+    @apply text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl dark:text-stone-50;
+  }
+
+  .page-subtitle {
+    @apply mt-1.5 max-w-xl text-sm leading-relaxed text-stone-500 sm:text-[15px];
+  }
+
+  .soft-panel {
+    @apply rounded-2xl bg-[var(--surface)] p-4 sm:rounded-3xl sm:p-5;
+  }
+
+  .field {
+    @apply w-full rounded-xl border-0 bg-stone-100 px-3.5 py-2.5 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:bg-stone-50 focus:ring-2 focus:ring-stone-300/80 dark:bg-stone-800 dark:text-stone-50 dark:placeholder:text-stone-500 dark:focus:bg-stone-800 dark:focus:ring-stone-600;
+    color-scheme: inherit;
+  }
+
+  select.field {
+    @apply appearance-auto;
+  }
+
+  select.field option {
+    background-color: #ffffff;
+    color: #1c1917;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    select.field option {
+      background-color: #1c1917;
+      color: #fafaf9;
+    }
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium transition hover:bg-stone-800 disabled:opacity-40 dark:bg-stone-100 dark:hover:bg-white;
+  }
+
+  .btn-quiet {
+    @apply inline-flex items-center justify-center rounded-full px-3 py-1.5 text-sm transition hover:bg-stone-200/70 dark:hover:bg-stone-800;
+  }
+
+  .chip {
+    @apply rounded-full px-3.5 py-1.5 text-sm font-medium transition;
+  }
+
+  .chip-idle {
+    @apply bg-stone-100 hover:bg-stone-200/90 dark:bg-stone-800 dark:hover:bg-stone-700;
+  }
+
+  .chip-active {
+    @apply bg-stone-900 dark:bg-stone-100;
+  }
+
+  .section-label {
+    @apply text-[11px] font-medium tracking-[0.14em] text-stone-400 uppercase;
+  }
+
+  .auth-card {
+    @apply w-full max-w-md rounded-3xl bg-[var(--surface)] p-7 shadow-sm sm:p-8;
+  }
+}
+
+/* Button text contrast — outside @layer so it always wins */
+.btn-primary {
+  color: #ffffff !important;
+}
+.btn-quiet {
+  color: #57534e !important;
+}
+.chip-idle {
+  color: #44403c !important;
+}
+.chip-active {
+  color: #ffffff !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .btn-primary {
+    color: #1c1917 !important;
+  }
+  .btn-quiet {
+    color: #d6d3d1 !important;
+  }
+  .chip-idle {
+    color: #e7e5e4 !important;
+  }
+  .chip-active {
+    color: #1c1917 !important;
+  }
+}
+

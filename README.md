@@ -1,36 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Notepad (Next.js + Supabase)
 
-## Getting Started
+Personal notepad with **sign up**, **6-digit PIN sign-in**, **notes**, **tasks**, **calendar**, and **PIN change** in Settings.
 
-First, run the development server:
+## Setup
+
+1. Copy env (already in `.env.local` from your Supabase project):
+
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY` (server-only, for profile creation on signup)
+
+2. Database tables use the `notepad_*` prefix only. Migration: `supabase/migrations/001_notepad_schema.sql` (already applied if you ran the setup script; safe to re-run — no drops).
+
+3. Run the app:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Auth
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Sign up**: email + 6-digit PIN (confirmed). PIN is stored as the Supabase Auth password (min length satisfied by 6 digits).
+- **Sign in**: email + PIN.
+- **Change PIN**: Settings → verify current PIN, set new PIN.
 
-## Learn More
+## Performance
 
-To learn more about Next.js, take a look at the following resources:
+- Server Components + parallel `Promise.all` on the dashboard
+- React `cache()` for session/profile
+- Indexed columns on user_id + sort fields
+- Link prefetch on navigation
+- Turbopack dev server
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Finance project
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This app only creates/uses `notepad_profiles`, `notepad_notes`, `notepad_tasks`, and `notepad_calendar_events`. It does **not** drop or alter existing finance tables.
