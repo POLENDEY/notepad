@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import type { Note } from "@/lib/types";
 import { updateNote } from "@/app/actions/notes";
 import { ColorWheel } from "@/components/color-wheel";
+import { NoteEditor } from "@/components/note-editor";
 import { contrastStyle, contrastTextClass } from "@/lib/contrast";
 
 type FloatingNoteProps = {
@@ -96,11 +97,14 @@ export function FloatingNote({
           placeholder="Title"
           className={`bg-transparent text-xl font-semibold outline-none placeholder:opacity-40 ${tx.title}`}
         />
-        <textarea
+        <NoteEditor
           name="body"
           defaultValue={note.body}
           placeholder="Write…"
-          className={`min-h-0 flex-1 resize-none bg-transparent text-sm leading-relaxed outline-none placeholder:opacity-40 ${tx.body}`}
+          className="min-h-0 flex-1"
+          minHeightClass="min-h-[8rem]"
+          maxHeightClass="max-h-none"
+          editorClassName={`text-sm leading-relaxed ${tx.body}`}
         />
         <div
           className="flex items-center gap-2 pt-2"

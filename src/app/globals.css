@@ -159,3 +159,102 @@ select optgroup {
   }
 }
 
+/* TipTap note body */
+.note-editor-prose {
+  line-height: 1.65;
+}
+
+.note-editor-prose p {
+  margin: 0.35em 0;
+}
+
+.note-editor-prose p:first-child {
+  margin-top: 0;
+}
+
+.note-editor-prose ul,
+.note-editor-prose ol {
+  margin: 0.4em 0;
+  padding-left: 1.25rem;
+}
+
+.note-editor-prose ul {
+  list-style: disc;
+}
+
+.note-editor-prose ol {
+  list-style: decimal;
+}
+
+.note-editor-prose a.note-link,
+.note-editor-prose a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  opacity: 0.9;
+}
+
+.note-editor-prose mark {
+  border-radius: 0.15em;
+  padding: 0 0.1em;
+}
+
+.note-editor-prose ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0.15rem;
+}
+
+.note-editor-prose ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+}
+
+.note-editor-prose ul[data-type="taskList"] li > label {
+  margin-top: 0.2rem;
+}
+
+.note-editor-prose ul[data-type="taskList"] li > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.note-editor .tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: #a8a29e;
+}
+
+.note-editor .tiptap:focus {
+  outline: none;
+}
+
+/* Minimal note body scrollbar */
+.note-editor-scroll {
+  --scrollbar-thumb: color-mix(in srgb, var(--foreground) 18%, transparent);
+  --scrollbar-track: transparent;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+.note-editor-scroll:hover {
+  --scrollbar-thumb: color-mix(in srgb, var(--foreground) 28%, transparent);
+}
+
+@supports not (scrollbar-color: auto) {
+  .note-editor-scroll::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .note-editor-scroll::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+
+  .note-editor-scroll::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 999px;
+  }
+}
+

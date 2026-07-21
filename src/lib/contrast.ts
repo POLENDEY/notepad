@@ -14,9 +14,25 @@ function parseHex(hex: string): { r: number; g: number; b: number } {
   return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
 }
 
+function parseCssColor(input: string): { r: number; g: number; b: number } {
+  const value = (input || "").trim();
+  if (value.startsWith("#")) return parseHex(value);
+  const rgb = value.match(
+    /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i,
+  );
+  if (rgb) {
+    return {
+      r: Number(rgb[1]),
+      g: Number(rgb[2]),
+      b: Number(rgb[3]),
+    };
+  }
+  return parseHex("#fde68a");
+}
+
 /** WCAG relative luminance 0–1 */
-export function relativeLuminance(hex: string): number {
-  const { r, g, b } = parseHex(hex);
+export function relativeLuminance(color: string): number {
+  const { r, g, b } = parseCssColor(color);
   const lin = [r, g, b].map((c) => {
     const s = c / 255;
     return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
@@ -24,8 +40,13 @@ export function relativeLuminance(hex: string): number {
   return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
 }
 
-export function isDarkBackground(hex: string): boolean {
-  return relativeLuminance(hex) < 0.45;
+export function isDarkBackground(color: string): boolean {
+  return relativeLuminance(color) < 0.45;
+}
+
+/** Readable text color for any highlight / card background */
+export function contrastForeground(background: string): string {
+  return isDarkBackground(background || "#fde68a") ? "#fafaf9" : "#1c1917";
 }
 
 /** Auto light/dark text colors for a colored note/category card */

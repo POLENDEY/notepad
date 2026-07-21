@@ -24,6 +24,9 @@ import {
   readGuestDraft,
   saveGuestDraft,
 } from "@/lib/guest-draft";
+import { isNoteBodyEmpty } from "@/lib/note-html";
+import { NoteEditor } from "@/components/note-editor";
+import { NoteExportMenu } from "@/components/note-export-menu";
 
 type SaveMode = "quick" | "category" | null;
 
@@ -96,8 +99,10 @@ export function NotesBoard({
     clearGuestDraft();
   }
 
+  const bodyEmpty = isNoteBodyEmpty(body);
+
   function requestSave() {
-    if (!title.trim() && !body.trim()) return;
+    if (!title.trim() && bodyEmpty) return;
     if (!isLoggedIn) {
       saveGuestDraft({ title, body, color });
       setAuthOpen(true);
@@ -113,7 +118,7 @@ export function NotesBoard({
       setAuthOpen(true);
       return;
     }
-    if (!title.trim() && !body.trim()) return;
+    if (!title.trim() && bodyEmpty) return;
     const fd = new FormData();
     fd.set("title", title.trim() || "Untitled");
     fd.set("body", body);
@@ -208,12 +213,13 @@ export function NotesBoard({
           placeholder="Title"
           className="w-full border-0 bg-transparent text-2xl font-semibold text-stone-900 outline-none placeholder:text-stone-400 dark:text-stone-50"
         />
-        <textarea
+        <NoteEditor
           value={body}
-          onChange={(e) => setBody(e.target.value)}
+          onChange={setBody}
           placeholder="Start writing…"
-          rows={6}
-          className="mt-3 w-full resize-none border-0 bg-transparent text-base leading-relaxed text-stone-700 outline-none placeholder:text-stone-400 dark:text-stone-200"
+          className="mt-3"
+          maxHeightClass="max-h-[18rem]"
+          editorClassName="text-base leading-relaxed text-stone-700 dark:text-stone-200"
         />
 
         <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-stone-200/80 pt-4 dark:border-stone-800">
@@ -226,11 +232,17 @@ export function NotesBoard({
             />
             Card color
           </label>
+          <NoteExportMenu
+            className="ml-auto"
+            title={title}
+            bodyHtml={body}
+            disabled={bodyEmpty && !title.trim()}
+          />
           <button
             type="button"
-            disabled={pending || (!title.trim() && !body.trim())}
+            disabled={pending || (!title.trim() && bodyEmpty)}
             onClick={requestSave}
-            className="btn-primary ml-auto"
+            className="btn-primary"
           >
             Save note
           </button>

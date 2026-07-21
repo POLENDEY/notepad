@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizeNoteHtml } from "@/lib/note-html";
 import { purgeExpiredTrashForCurrentUser } from "@/lib/trash";
 
 function revalidateNotes() {
@@ -28,7 +29,7 @@ export async function createNote(formData: FormData) {
   const { supabase, user } = await requireUser();
 
   const title = String(formData.get("title") ?? "Untitled").trim() || "Untitled";
-  const body = String(formData.get("body") ?? "");
+  const body = sanitizeNoteHtml(String(formData.get("body") ?? ""));
   const color = String(formData.get("color") ?? "#fef9c3");
   const mode = String(formData.get("saveMode") ?? "quick");
   let category_id: string | null = null;
@@ -99,7 +100,7 @@ export async function updateNote(id: string, formData: FormData) {
   const { supabase, user } = await requireUser();
 
   const title = String(formData.get("title") ?? "");
-  const body = String(formData.get("body") ?? "");
+  const body = sanitizeNoteHtml(String(formData.get("body") ?? ""));
   const color = String(formData.get("color") ?? "#fef9c3");
   const isPinned = formData.get("isPinned") === "on";
   const categoryRaw = String(formData.get("categoryId") ?? "");

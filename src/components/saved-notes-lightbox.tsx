@@ -4,7 +4,10 @@ import { useMemo, useState, useTransition } from "react";
 import type { Note, NoteCategory } from "@/lib/types";
 import { deleteNote, updateNote } from "@/app/actions/notes";
 import { ColorWheel } from "@/components/color-wheel";
+import { NoteEditor } from "@/components/note-editor";
+import { NoteExportMenu } from "@/components/note-export-menu";
 import { openNoteOutsideBrowser } from "@/lib/open-note-window";
+import { noteBodyToPlainText } from "@/lib/note-html";
 import { contrastStyle, contrastTextClass, isDarkBackground } from "@/lib/contrast";
 
 export function SavedNotesLightbox({
@@ -123,11 +126,14 @@ export function SavedNotesLightbox({
                         defaultValue={note.title}
                         className={`bg-transparent text-lg font-semibold outline-none ${tx.title}`}
                       />
-                      <textarea
+                      <NoteEditor
                         name="body"
                         defaultValue={note.body}
-                        rows={4}
-                        className={`flex-1 resize-y bg-transparent text-sm outline-none ${tx.body}`}
+                        placeholder="Write…"
+                        className="flex-1"
+                        minHeightClass="min-h-[6rem]"
+                        maxHeightClass="max-h-[14rem]"
+                        editorClassName={`text-sm ${tx.body}`}
                       />
                       <input
                         type="hidden"
@@ -176,7 +182,7 @@ export function SavedNotesLightbox({
                       <p
                         className={`mt-1 line-clamp-4 flex-1 text-sm whitespace-pre-wrap ${tx.body}`}
                       >
-                        {note.body || "Empty note"}
+                        {noteBodyToPlainText(note.body) || "Empty note"}
                       </p>
                       <div
                         className="mt-3 flex flex-wrap gap-2 pt-2"
@@ -189,6 +195,11 @@ export function SavedNotesLightbox({
                         >
                           Edit
                         </button>
+                        <NoteExportMenu
+                          title={note.title}
+                          bodyHtml={note.body}
+                          className="[&>button]:border-0 [&>button]:bg-transparent [&>button]:px-0 [&>button]:py-0 [&>button]:text-[inherit] [&>button]:opacity-80 [&>button]:hover:bg-transparent [&>button]:hover:underline"
+                        />
                         <button
                           type="button"
                           className={`text-xs font-medium underline-offset-2 hover:underline ${tx.muted}`}
