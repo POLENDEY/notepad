@@ -12,7 +12,7 @@ import { TextStyle } from "@tiptap/extension-text-style";
 import { FontSize } from "@tiptap/extension-text-style/font-size";
 import { contrastForeground } from "@/lib/contrast";
 import { ContrastHighlight } from "@/lib/contrast-highlight";
-import { noteBodyToEditorHtml } from "@/lib/note-html";
+import { encodeNoteHtmlSpaces, noteBodyToEditorHtml } from "@/lib/note-html";
 
 const DEFAULT_SIZE = 16;
 const MIN_SIZE = 10;
@@ -29,6 +29,7 @@ type NoteEditorProps = {
   editorClassName?: string;
   minHeightClass?: string;
   maxHeightClass?: string;
+  hideToolbar?: boolean;
 };
 
 export function NoteEditor({
@@ -41,6 +42,7 @@ export function NoteEditor({
   editorClassName = "",
   minHeightClass = "min-h-[9rem]",
   maxHeightClass = "max-h-[16rem]",
+  hideToolbar = false,
 }: NoteEditorProps) {
   const sizeInputId = useId();
   const highlightId = useId();
@@ -91,7 +93,7 @@ export function NoteEditor({
       },
     },
     onUpdate: ({ editor: ed }) => {
-      onChange?.(ed.getHTML());
+      onChange?.(encodeNoteHtmlSpaces(ed.getHTML()));
     },
     onSelectionUpdate: ({ editor: ed }) => {
       const sizeAttr = ed.getAttributes("textStyle").fontSize as
@@ -153,7 +155,7 @@ export function NoteEditor({
       .run();
   }
 
-  const formHtml = editor?.getHTML() ?? initial;
+  const formHtml = encodeNoteHtmlSpaces(editor?.getHTML() ?? initial);
   const highlightActive = !!editor?.isActive("highlight");
 
   return (
@@ -162,6 +164,7 @@ export function NoteEditor({
         <input type="hidden" name={name} value={formHtml} readOnly />
       ) : null}
 
+      {!hideToolbar ? (
       <div
         className="note-editor-toolbar flex shrink-0 flex-wrap items-center gap-x-0.5 gap-y-1.5 border-b border-stone-200/70 pb-2 dark:border-stone-800"
         role="toolbar"
@@ -318,9 +321,12 @@ export function NoteEditor({
           Link
         </ToolBtn>
       </div>
+      ) : null}
 
       <div
-        className={`note-editor-scroll mt-3 min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 ${maxHeightClass}`}
+        className={`note-editor-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 ${
+          hideToolbar ? "mt-0" : "mt-3"
+        } ${maxHeightClass}`}
       >
         <EditorContent editor={editor} />
       </div>

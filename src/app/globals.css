@@ -162,6 +162,8 @@ select optgroup {
 /* TipTap note body */
 .note-editor-prose {
   line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .note-editor-prose p {
