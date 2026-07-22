@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Note } from "@/lib/types";
-import { updateNote } from "@/app/actions/notes";
-import { ColorWheel } from "@/components/color-wheel";
 import { NoteEditor } from "@/components/note-editor";
 import { contrastStyle, contrastTextClass } from "@/lib/contrast";
+import { autosaveLabel, useNoteAutosave } from "@/lib/use-note-autosave";
 
 type FloatingNoteProps = {
   note: Note;
@@ -20,16 +19,31 @@ export function FloatingNote({
   zIndex,
   onFocus,
 }: FloatingNoteProps) {
-  const [pending, startTransition] = useTransition();
   const [pos, setPos] = useState({
     x: 80 + (zIndex % 5) * 28,
     y: 72 + (zIndex % 5) * 28,
   });
+  const [title, setTitle] = useState(note.title);
+  const [body, setBody] = useState(note.body);
+  const [color, setColor] = useState(note.color);
+  const [isPinned, setIsPinned] = useState(note.is_pinned);
   const drag = useRef<{ ox: number; oy: number; sx: number; sy: number } | null>(
     null,
   );
-  const tx = contrastTextClass(note.color);
-  const surface = contrastStyle(note.color);
+  const tx = contrastTextClass(color);
+  const surface = contrastStyle(color);
+
+  const patch = useMemo(
+    () => ({
+      title,
+      body,
+      color,
+      isPinned,
+      categoryId: note.category_id,
+    }),
+    [title, body, color, isPinned, note.category_id],
+  );
+  const saveStatus = useNoteAutosave(note.id, patch, true, 450);
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
@@ -78,6 +92,9 @@ export function FloatingNote({
         }}
       >
         <span className={`text-xs font-medium ${tx.muted}`}>Note</span>
+        <span className={`text-[10px] ${tx.muted}`} aria-live="polite">
+          {autosaveLabel(saveStatus)}
+        </span>
         <button
           type="button"
           onClick={onClose}
@@ -86,48 +103,43 @@ export function FloatingNote({
           Close
         </button>
       </div>
-      <form
-        action={(fd) => startTransition(() => updateNote(note.id, fd))}
-        className="flex min-h-0 flex-1 flex-col gap-2 p-4"
-      >
-        <input type="hidden" name="categoryId" value={note.category_id ?? ""} />
+      <div className="flex min-h-0 flex-1 flex-col gap-2 p-4">
         <input
-          name="title"
-          defaultValue={note.title}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
           placeholder="Title"
           className={`bg-transparent text-xl font-semibold outline-none placeholder:opacity-40 ${tx.title}`}
         />
         <NoteEditor
-          name="body"
-          defaultValue={note.body}
+          value={body}
+          onChange={setBody}
           placeholder="Write…"
           className="min-h-0 flex-1"
           minHeightClass="min-h-[8rem]"
           maxHeightClass="max-h-none"
-          editorClassName={`text-sm leading-relaxed ${tx.body}`}
+          editorClassName={`text-sm ${tx.body}`}
         />
         <div
           className="flex items-center gap-2 pt-2"
           style={{ borderTop: "1px solid var(--note-line)" }}
         >
-          <ColorWheel name="color" defaultValue={note.color} />
+          <input
+            type="color"
+            value={color}
+            onChange={(e) => setColor(e.target.value)}
+            className="h-7 w-7 cursor-pointer rounded border-0 bg-transparent p-0"
+            aria-label="Color"
+          />
           <label className={`flex items-center gap-1 text-xs ${tx.muted}`}>
             <input
               type="checkbox"
-              name="isPinned"
-              defaultChecked={note.is_pinned}
+              checked={isPinned}
+              onChange={(e) => setIsPinned(e.target.checked)}
             />
             Pin
           </label>
-          <button
-            type="submit"
-            disabled={pending}
-            className="btn-primary ml-auto px-3 py-1.5 text-xs"
-          >
-            {pending ? "…" : "Save"}
-          </button>
         </div>
-      </form>
+      </div>
     </div>
   );
 }

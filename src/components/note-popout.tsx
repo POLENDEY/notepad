@@ -1,17 +1,19 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Note } from "@/lib/types";
-import { updateNote } from "@/app/actions/notes";
 import { NoteEditor } from "@/components/note-editor";
 import { NoteExportMenu } from "@/components/note-export-menu";
 import { contrastStyle, contrastTextClass } from "@/lib/contrast";
+import {
+  autosaveLabel,
+  useNoteAutosave,
+} from "@/lib/use-note-autosave";
 
 const FULL_VIEW_KEY = "notepad-popout-full-view";
 
 /** Standalone note window — full viewport, note content only. */
 export function NotePopout({ note }: { note: Note }) {
-  const [pending, startTransition] = useTransition();
   const [title, setTitle] = useState(note.title);
   const [body, setBody] = useState(note.body);
   const [isPinned, setIsPinned] = useState(note.is_pinned);
@@ -24,6 +26,20 @@ export function NotePopout({ note }: { note: Note }) {
     }
   });
   const tx = contrastTextClass(note.color);
+
+  const patch = useMemo(
+    () => ({
+      title,
+      body,
+      color: note.color,
+      isPinned,
+      categoryId: note.category_id,
+    }),
+    [title, body, note.color, isPinned, note.category_id],
+  );
+
+  const saveStatus = useNoteAutosave(note.id, patch, true, 450);
+  const statusText = autosaveLabel(saveStatus);
 
   useEffect(() => {
     document.title = note.title || "Note";
@@ -63,21 +79,16 @@ export function NotePopout({ note }: { note: Note }) {
       className="relative flex h-dvh max-h-dvh flex-col overflow-hidden"
       style={contrastStyle(note.color)}
     >
-      <form
-        action={(fd) => startTransition(() => updateNote(note.id, fd))}
+      <div
         className={`mx-auto flex h-full min-h-0 w-full flex-1 flex-col ${
           fullView
             ? "max-w-none gap-0 px-5 py-5 sm:px-8 sm:py-6"
             : "max-w-2xl gap-4 px-6 py-6"
         }`}
       >
-        <input type="hidden" name="categoryId" value={note.category_id ?? ""} />
-        <input type="hidden" name="color" value={note.color} />
-
         {!fullView ? (
           <div className="flex shrink-0 items-start gap-3">
             <input
-              name="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Title"
@@ -93,12 +104,9 @@ export function NotePopout({ note }: { note: Note }) {
               <IconEnterFullView />
             </button>
           </div>
-        ) : (
-          <input type="hidden" name="title" value={title} readOnly />
-        )}
+        ) : null}
 
         <NoteEditor
-          name="body"
           value={body}
           onChange={setBody}
           placeholder="Write…"
@@ -106,7 +114,7 @@ export function NotePopout({ note }: { note: Note }) {
           minHeightClass="min-h-0"
           maxHeightClass="max-h-full"
           hideToolbar={fullView}
-          editorClassName={`leading-relaxed ${tx.body} ${
+          editorClassName={`${tx.body} ${
             fullView ? "text-xl sm:text-2xl" : "text-lg"
           }`}
         />
@@ -119,21 +127,25 @@ export function NotePopout({ note }: { note: Note }) {
             <label className={`flex items-center gap-1 text-sm ${tx.muted}`}>
               <input
                 type="checkbox"
-                name="isPinned"
                 checked={isPinned}
                 onChange={(e) => setIsPinned(e.target.checked)}
               />
               Pin
             </label>
+            <span className={`text-xs ${tx.muted}`} aria-live="polite">
+              {statusText}
+            </span>
             <NoteExportMenu className="ml-auto" title={title} bodyHtml={body} />
-            <button type="submit" disabled={pending} className="btn-primary">
-              {pending ? "Saving…" : "Save"}
-            </button>
           </div>
-        ) : isPinned ? (
-          <input type="hidden" name="isPinned" value="on" />
-        ) : null}
-      </form>
+        ) : (
+          <p
+            className={`pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 text-[11px] opacity-50 ${tx.muted}`}
+            aria-live="polite"
+          >
+            {statusText}
+          </p>
+        )}
+      </div>
 
       {fullView ? (
         <button

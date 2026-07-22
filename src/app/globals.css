@@ -232,6 +232,15 @@ select optgroup {
   outline: none;
 }
 
+.note-editor .tiptap {
+  min-height: 100%;
+  cursor: text;
+}
+
+.note-editor-scroll {
+  cursor: text;
+}
+
 /* Minimal note body scrollbar */
 .note-editor-scroll {
   --scrollbar-thumb: color-mix(in srgb, var(--foreground) 18%, transparent);

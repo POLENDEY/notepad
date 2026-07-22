@@ -25,7 +25,7 @@ export async function purgeExpiredTrash() {
   revalidateNotes();
 }
 
-export async function createNote(formData: FormData) {
+export async function createNote(formData: FormData): Promise<string> {
   const { supabase, user } = await requireUser();
 
   const title = String(formData.get("title") ?? "Untitled").trim() || "Untitled";
@@ -68,15 +68,65 @@ export async function createNote(formData: FormData) {
     }
   }
 
-  await supabase.from("notepad_notes").insert({
-    user_id: user.id,
+  const { data, error } = await supabase
+    .from("notepad_notes")
+    .insert({
+      user_id: user.id,
+      title,
+      body,
+      color,
+      category_id,
+    })
+    .select("id")
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  revalidateNotes();
+  return data.id as string;
+}
+
+export type NoteAutosavePatch = {
+  title: string;
+  body: string;
+  color: string;
+  isPinned?: boolean;
+  categoryId?: string | null;
+};
+
+/** Debounced client saves — skips path revalidation so the editor is not disrupted. */
+export async function autosaveNote(id: string, patch: NoteAutosavePatch) {
+  const { supabase, user } = await requireUser();
+
+  const title = patch.title.trim() || "Untitled";
+  const body = sanitizeNoteHtml(patch.body);
+  const color = patch.color || "#fef9c3";
+  const category_id =
+    patch.categoryId === undefined
+      ? undefined
+      : patch.categoryId || null;
+
+  const update: Record<string, unknown> = {
     title,
     body,
     color,
-    category_id,
-  });
+    updated_at: new Date().toISOString(),
+  };
+  if (typeof patch.isPinned === "boolean") {
+    update.is_pinned = patch.isPinned;
+  }
+  if (category_id !== undefined) {
+    update.category_id = category_id;
+  }
 
-  revalidateNotes();
+  const { error } = await supabase
+    .from("notepad_notes")
+    .update(update)
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .is("deleted_at", null);
+
+  if (error) throw new Error(error.message);
 }
 
 export async function reorderCategories(orderedIds: string[]) {

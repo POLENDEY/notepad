@@ -2,13 +2,17 @@
 
 import { useMemo, useState, useTransition } from "react";
 import type { Note, NoteCategory } from "@/lib/types";
-import { deleteNote, updateNote } from "@/app/actions/notes";
-import { ColorWheel } from "@/components/color-wheel";
+import { deleteNote } from "@/app/actions/notes";
 import { NoteEditor } from "@/components/note-editor";
 import { NoteExportMenu } from "@/components/note-export-menu";
 import { openNoteOutsideBrowser } from "@/lib/open-note-window";
 import { noteBodyToPlainText } from "@/lib/note-html";
-import { contrastStyle, contrastTextClass, isDarkBackground } from "@/lib/contrast";
+import {
+  contrastStyle,
+  contrastTextClass,
+  isDarkBackground,
+} from "@/lib/contrast";
+import { autosaveLabel, useNoteAutosave } from "@/lib/use-note-autosave";
 
 export function SavedNotesLightbox({
   open,
@@ -112,59 +116,11 @@ export function SavedNotesLightbox({
                   style={contrastStyle(note.color)}
                 >
                   {isEditing ? (
-                    <form
-                      action={(fd) => {
-                        startTransition(async () => {
-                          await updateNote(note.id, fd);
-                          setEditingId(null);
-                        });
-                      }}
-                      className="flex flex-1 flex-col gap-2"
-                    >
-                      <input
-                        name="title"
-                        defaultValue={note.title}
-                        className={`bg-transparent text-lg font-semibold outline-none ${tx.title}`}
-                      />
-                      <NoteEditor
-                        name="body"
-                        defaultValue={note.body}
-                        placeholder="Write…"
-                        className="flex-1"
-                        minHeightClass="min-h-[6rem]"
-                        maxHeightClass="max-h-[14rem]"
-                        editorClassName={`text-sm ${tx.body}`}
-                      />
-                      <input
-                        type="hidden"
-                        name="categoryId"
-                        value={note.category_id ?? ""}
-                      />
-                      <div className="flex flex-wrap items-center gap-2">
-                        <ColorWheel name="color" defaultValue={note.color} />
-                        <label className={`flex items-center gap-1 text-xs ${tx.muted}`}>
-                          <input
-                            type="checkbox"
-                            name="isPinned"
-                            defaultChecked={note.is_pinned}
-                          />
-                          Pin
-                        </label>
-                        <button
-                          type="submit"
-                          className="btn-primary ml-auto px-3 py-1 text-xs"
-                        >
-                          Save
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditingId(null)}
-                          className={`text-xs ${tx.muted}`}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
+                    <LightboxNoteEditor
+                      key={note.id}
+                      note={note}
+                      onDone={() => setEditingId(null)}
+                    />
                   ) : (
                     <>
                       <span
@@ -231,6 +187,81 @@ export function SavedNotesLightbox({
             </p>
           ) : null}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function LightboxNoteEditor({
+  note,
+  onDone,
+}: {
+  note: Note;
+  onDone: () => void;
+}) {
+  const tx = contrastTextClass(note.color);
+  const [title, setTitle] = useState(note.title);
+  const [body, setBody] = useState(note.body);
+  const [color, setColor] = useState(note.color);
+  const [isPinned, setIsPinned] = useState(note.is_pinned);
+
+  const patch = useMemo(
+    () => ({
+      title,
+      body,
+      color,
+      isPinned,
+      categoryId: note.category_id,
+    }),
+    [title, body, color, isPinned, note.category_id],
+  );
+
+  const saveStatus = useNoteAutosave(note.id, patch, true, 450);
+
+  return (
+    <div className="flex flex-1 flex-col gap-2">
+      <input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        className={`bg-transparent text-lg font-semibold outline-none ${tx.title}`}
+      />
+      <NoteEditor
+        value={body}
+        onChange={setBody}
+        placeholder="Write…"
+        className="flex-1"
+        minHeightClass="min-h-[6rem]"
+        maxHeightClass="max-h-[14rem]"
+        editorClassName={`text-sm ${tx.body}`}
+      />
+      <div className="flex flex-wrap items-center gap-2">
+        <label className={`inline-flex items-center gap-1 text-xs ${tx.muted}`}>
+          <input
+            type="color"
+            value={color}
+            onChange={(e) => setColor(e.target.value)}
+            className="h-7 w-7 cursor-pointer rounded border-0 bg-transparent p-0"
+          />
+          Color
+        </label>
+        <label className={`flex items-center gap-1 text-xs ${tx.muted}`}>
+          <input
+            type="checkbox"
+            checked={isPinned}
+            onChange={(e) => setIsPinned(e.target.checked)}
+          />
+          Pin
+        </label>
+        <span className={`text-[11px] ${tx.muted}`} aria-live="polite">
+          {autosaveLabel(saveStatus)}
+        </span>
+        <button
+          type="button"
+          onClick={onDone}
+          className={`ml-auto text-xs ${tx.muted}`}
+        >
+          Done
+        </button>
       </div>
     </div>
   );

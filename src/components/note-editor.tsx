@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
+import { Fragment, Slice } from "@tiptap/pm/model";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
@@ -98,12 +99,47 @@ export function NoteEditor({
       Placeholder.configure({ placeholder }),
     ],
     content: initial,
-    parseOptions: {
-      preserveWhitespace: "full",
-    },
     editorProps: {
       attributes: {
-        class: `note-editor-prose outline-none ${minHeightClass} ${editorClassName}`,
+        class: `note-editor-prose outline-none min-h-full ${minHeightClass} ${editorClassName}`,
+      },
+      handlePaste(view, event) {
+        const text = event.clipboardData?.getData("text/plain");
+        if (text == null) return false;
+
+        const html = event.clipboardData?.getData("text/html") ?? "";
+        event.preventDefault();
+
+        let normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+        if (html.trim()) {
+          normalized = normalized.replace(/\n{2,}/g, "\n");
+        }
+        normalized = normalized.replace(/^\n+|\n+$/g, "");
+
+        const { schema } = view.state;
+        const lines = normalized.length ? normalized.split("\n") : [""];
+        const nodes = lines.map((line) => {
+          if (!line) return schema.nodes.paragraph.create();
+          return schema.nodes.paragraph.create(null, schema.text(line));
+        });
+
+        const slice = Slice.maxOpen(Fragment.fromArray(nodes));
+        view.dispatch(view.state.tr.replaceSelection(slice).scrollIntoView());
+        return true;
+      },
+      transformPastedText(text) {
+        return text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+      },
+      clipboardTextParser(text, $context) {
+        const schema = $context.doc.type.schema;
+        let normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+        normalized = normalized.replace(/\n{2,}/g, "\n").replace(/^\n+|\n+$/g, "");
+        const lines = normalized.length ? normalized.split("\n") : [""];
+        const nodes = lines.map((line) => {
+          if (!line) return schema.nodes.paragraph.create();
+          return schema.nodes.paragraph.create(null, schema.text(line));
+        });
+        return Slice.maxOpen(Fragment.fromArray(nodes));
       },
     },
     onUpdate: ({ editor: ed }) => {
@@ -346,11 +382,17 @@ export function NoteEditor({
       ) : null}
 
       <div
-        className={`note-editor-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 ${
+        className={`note-editor-scroll min-h-0 flex-1 cursor-text overflow-y-auto overflow-x-hidden pr-1 ${
           hideToolbar ? "mt-0" : "mt-3"
         } ${maxHeightClass}`}
+        onMouseDown={(e) => {
+          const target = e.target as HTMLElement;
+          if (target.closest(".ProseMirror")) return;
+          e.preventDefault();
+          editor?.chain().focus("end").run();
+        }}
       >
-        <EditorContent editor={editor} />
+        <EditorContent editor={editor} className="h-full min-h-full" />
       </div>
     </div>
   );

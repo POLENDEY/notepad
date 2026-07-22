@@ -10,8 +10,10 @@ import {
 } from "react";
 import type { Note, NoteCategory } from "@/lib/types";
 import {
+  autosaveNote,
   createNote,
   deleteCategory,
+  deleteNote,
   reorderCategories,
   updateCategory,
 } from "@/app/actions/notes";
@@ -59,6 +61,8 @@ export function NotesBoard({
   const [libraryProp, setLibraryProp] = useState(initialLibraryOpen);
   const dragIdRef = useRef<string | null>(null);
   const restoredRef = useRef(false);
+  const [autoNoteId, setAutoNoteId] = useState<string | null>(null);
+  const creatingRef = useRef(false);
 
   if (initialLibraryOpen !== libraryProp) {
     setLibraryProp(initialLibraryOpen);
@@ -96,10 +100,60 @@ export function NotesBoard({
     setCategoryId("");
     setNewCategoryName("");
     setNewCategoryColor("#dbeafe");
+    setAutoNoteId(null);
+    creatingRef.current = false;
     clearGuestDraft();
   }
 
   const bodyEmpty = isNoteBodyEmpty(body);
+
+  // Autosave draft locally (including spaces) for guests and logged-in compose
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (!title.trim() && bodyEmpty) {
+        clearGuestDraft();
+        return;
+      }
+      saveGuestDraft({ title, body, color });
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [title, body, color, bodyEmpty]);
+
+  // Logged-in: also persist compose draft to the server
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    if (!title.trim() && bodyEmpty) return;
+
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          if (!autoNoteId) {
+            if (creatingRef.current) return;
+            creatingRef.current = true;
+            const fd = new FormData();
+            fd.set("title", title.trim() || "Untitled");
+            fd.set("body", body);
+            fd.set("color", color);
+            fd.set("saveMode", "quick");
+            const id = await createNote(fd);
+            setAutoNoteId(id);
+            creatingRef.current = false;
+            return;
+          }
+          await autosaveNote(autoNoteId, {
+            title: title.trim() || "Untitled",
+            body,
+            color,
+            categoryId: null,
+          });
+        } catch {
+          creatingRef.current = false;
+        }
+      })();
+    }, 700);
+
+    return () => window.clearTimeout(timer);
+  }, [isLoggedIn, title, body, color, bodyEmpty, autoNoteId]);
 
   function requestSave() {
     if (!title.trim() && bodyEmpty) return;
@@ -119,22 +173,61 @@ export function NotesBoard({
       return;
     }
     if (!title.trim() && bodyEmpty) return;
-    const fd = new FormData();
-    fd.set("title", title.trim() || "Untitled");
-    fd.set("body", body);
-    fd.set("saveMode", mode);
-    if (mode === "category") {
-      fd.set("categoryId", categoryId);
-      fd.set("newCategoryName", newCategoryName);
-      fd.set("newCategoryColor", newCategoryColor);
-      fd.set(
-        "color",
-        categoryId ? color : newCategoryName ? newCategoryColor : color,
-      );
-    } else {
-      fd.set("color", color);
-    }
+
     startTransition(async () => {
+      // Autosave already created a note — finalize instead of duplicating
+      if (autoNoteId && mode === "quick") {
+        await autosaveNote(autoNoteId, {
+          title: title.trim() || "Untitled",
+          body,
+          color,
+          categoryId: null,
+        });
+        resetComposer();
+        return;
+      }
+
+      if (autoNoteId && mode === "category") {
+        if (categoryId) {
+          await autosaveNote(autoNoteId, {
+            title: title.trim() || "Untitled",
+            body,
+            color,
+            categoryId,
+          });
+          resetComposer();
+          return;
+        }
+        if (newCategoryName.trim()) {
+          const fd = new FormData();
+          fd.set("title", title.trim() || "Untitled");
+          fd.set("body", body);
+          fd.set("saveMode", "category");
+          fd.set("newCategoryName", newCategoryName);
+          fd.set("newCategoryColor", newCategoryColor);
+          fd.set("color", newCategoryColor);
+          const newId = await createNote(fd);
+          if (newId !== autoNoteId) await deleteNote(autoNoteId);
+          resetComposer();
+          return;
+        }
+      }
+
+      const fd = new FormData();
+      fd.set("title", title.trim() || "Untitled");
+      fd.set("body", body);
+      fd.set("saveMode", mode);
+      if (mode === "category") {
+        fd.set("categoryId", categoryId);
+        fd.set("newCategoryName", newCategoryName);
+        fd.set("newCategoryColor", newCategoryColor);
+        fd.set(
+          "color",
+          categoryId ? color : newCategoryName ? newCategoryColor : color,
+        );
+      } else {
+        fd.set("color", color);
+      }
       await createNote(fd);
       resetComposer();
     });
