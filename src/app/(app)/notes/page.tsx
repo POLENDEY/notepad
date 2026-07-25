@@ -1,5 +1,5 @@
-import { getCategories, getNotes, getSessionUser } from "@/lib/data";
-import { NotesBoard } from "@/components/notes-board";
+import { getArchivedNotes, getNotes, getSessionUser } from "@/lib/data";
+import { NotesWorkspace } from "@/components/notes-workspace";
 
 export default async function NotesPage({
   searchParams,
@@ -8,27 +8,19 @@ export default async function NotesPage({
 }) {
   const params = await searchParams;
   const user = await getSessionUser();
-  const [notes, categories] = await Promise.all([getNotes(), getCategories()]);
-  const initialLibraryOpen =
-    params.library === "1" || params.library === "open";
+  const [notes, archivedNotes] = await Promise.all([
+    getNotes(),
+    user ? getArchivedNotes() : Promise.resolve([]),
+  ]);
+  const initialShowSaved =
+    (params.library === "1" || params.library === "open") && !!user;
 
   return (
-    <div className="page-shell">
-      <header className="mb-6 sm:mb-8">
-        <p className="section-label">Write</p>
-        <h1 className="page-title mt-2">Notes</h1>
-        <p className="page-subtitle">
-          {user
-            ? "Draft here. Open saved notes from the library button (desktop) or Saved in the menu (mobile)."
-            : "Write freely as a guest. You’ll be asked to sign in only when you save."}
-        </p>
-      </header>
-      <NotesBoard
-        notes={notes}
-        categories={categories}
-        initialLibraryOpen={initialLibraryOpen && !!user}
-        isLoggedIn={!!user}
-      />
-    </div>
+    <NotesWorkspace
+      notes={notes}
+      archivedNotes={archivedNotes}
+      isLoggedIn={!!user}
+      initialShowSaved={initialShowSaved}
+    />
   );
 }

@@ -1,39 +1,37 @@
 # Notepad (Next.js + Supabase)
 
-Personal notepad with **sign up**, **6-digit PIN sign-in**, **notes**, **tasks**, **calendar**, and **PIN change** in Settings.
+Fast personal notes: write immediately, autosave, open in an OS window. Sign up / 6-digit PIN when you want sync.
 
 ## Setup
 
-1. Copy env (already in `.env.local` from your Supabase project):
+1. Env in `.env.local`:
 
    - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY` (server-only, for profile creation on signup)
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (or publishable key)
+   - `SUPABASE_SERVICE_ROLE_KEY` (signup profile creation)
 
-2. Database tables use the `notepad_*` prefix only. Migration: `supabase/migrations/001_notepad_schema.sql` (already applied if you ran the setup script; safe to re-run — no drops).
+2. Apply migrations in `supabase/migrations/` (including `004_notes_only.sql` which drops tasks/calendar/categories).
 
-3. Run the app:
+3. Run:
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000) → Notes.
+
+## Notes
+
+- Plain textarea, **11px** default
+- **Saved** panel only when toggled (no distraction while writing)
+- Autosave while typing
+- **Open window** for a real OS window outside the browser
 
 ## Auth
 
-- **Sign up**: email + 6-digit PIN (confirmed). PIN is stored as the Supabase Auth password (min length satisfied by 6 digits).
-- **Sign in**: email + PIN.
-- **Change PIN**: Settings → verify current PIN, set new PIN.
+- Sign up / sign in with email + 6-digit PIN
+- Change PIN in Settings
 
-## Performance
+## Database
 
-- Server Components + parallel `Promise.all` on the dashboard
-- React `cache()` for session/profile
-- Indexed columns on user_id + sort fields
-- Link prefetch on navigation
-- Turbopack dev server
-
-## Finance project
-
-This app only creates/uses `notepad_profiles`, `notepad_notes`, `notepad_tasks`, and `notepad_calendar_events`. It does **not** drop or alter existing finance tables.
+Only `notepad_profiles` and `notepad_notes`. Does **not** modify finance tables.

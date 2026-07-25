@@ -1,36 +1,24 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import {
-  autosaveNote,
-  type NoteAutosavePatch,
-} from "@/app/actions/notes";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { autosaveNote, type NoteAutosavePatch } from "@/app/actions/notes";
 
 export type AutosaveStatus = "idle" | "pending" | "saving" | "saved" | "error";
 
-/**
- * Debounced note autosave. Fires on every change (including spaces).
- * Skips route revalidation so the editor cursor stays stable.
- */
 export function useNoteAutosave(
   noteId: string | null | undefined,
   patch: NoteAutosavePatch | null,
   enabled = true,
-  delayMs = 500,
+  delayMs = 400,
 ) {
   const [status, setStatus] = useState<AutosaveStatus>("idle");
   const lastSavedRef = useRef<string | null>(null);
   const patchRef = useRef(patch);
   const trackedNoteId = useRef(noteId);
+  const savingRef = useRef<Promise<void> | null>(null);
 
   const patchKey = patch
-    ? JSON.stringify([
-        patch.title,
-        patch.body,
-        patch.color,
-        patch.isPinned ?? null,
-        patch.categoryId ?? null,
-      ])
+    ? JSON.stringify([patch.title, patch.body])
     : "";
 
   useEffect(() => {
@@ -44,10 +32,27 @@ export function useNoteAutosave(
     queueMicrotask(() => setStatus("idle"));
   }, [noteId]);
 
+  const saveNow = useCallback(async (id: string, current: NoteAutosavePatch) => {
+    const snapshot = JSON.stringify([current.title, current.body]);
+    setStatus("saving");
+    const job = autosaveNote(id, current)
+      .then(() => {
+        lastSavedRef.current = snapshot;
+        setStatus("saved");
+      })
+      .catch(() => {
+        setStatus("error");
+      })
+      .finally(() => {
+        if (savingRef.current === job) savingRef.current = null;
+      });
+    savingRef.current = job;
+    await job;
+  }, []);
+
   useEffect(() => {
     if (!enabled || !noteId || !patchKey) return;
 
-    // Seed baseline so opening a note does not immediately write
     if (lastSavedRef.current === null) {
       lastSavedRef.current = patchKey;
       return;
@@ -58,20 +63,30 @@ export function useNoteAutosave(
     const timer = window.setTimeout(() => {
       const current = patchRef.current;
       if (!current) return;
-      setStatus("saving");
-      const snapshot = patchKey;
-      void autosaveNote(noteId, current)
-        .then(() => {
-          lastSavedRef.current = snapshot;
-          setStatus("saved");
-        })
-        .catch(() => setStatus("error"));
+      void saveNow(noteId, current);
     }, delayMs);
 
     return () => window.clearTimeout(timer);
-  }, [enabled, noteId, patchKey, delayMs]);
+  }, [enabled, noteId, patchKey, delayMs, saveNow]);
 
-  return status;
+  const flush = useCallback(async () => {
+    if (!enabled || !noteId) return;
+    if (savingRef.current) await savingRef.current;
+    const current = patchRef.current;
+    if (!current) return;
+    const snapshot = JSON.stringify([current.title, current.body]);
+    if (snapshot === lastSavedRef.current) return;
+    await saveNow(noteId, current);
+  }, [enabled, noteId, saveNow]);
+
+  const isDirty =
+    !!enabled &&
+    !!noteId &&
+    !!patchKey &&
+    lastSavedRef.current !== null &&
+    patchKey !== lastSavedRef.current;
+
+  return { status, flush, isDirty };
 }
 
 export function autosaveLabel(status: AutosaveStatus): string {

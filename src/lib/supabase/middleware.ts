@@ -42,14 +42,14 @@ export async function updateSession(request: NextRequest) {
   if (user && isAuthRoute) {
     const url = request.nextUrl.clone();
     const next = request.nextUrl.searchParams.get("next");
-    url.pathname = next && next.startsWith("/") ? next : "/dashboard";
+    url.pathname = next && next.startsWith("/") ? next : "/notes";
     url.search = "";
     return NextResponse.redirect(url);
   }
 
-  if (path === "/") {
+  if (path === "/" || path === "/dashboard" || path === "/tasks" || path === "/calendar" || path === "/trash") {
     const url = request.nextUrl.clone();
-    url.pathname = user ? "/dashboard" : "/notes";
+    url.pathname = "/notes";
     return NextResponse.redirect(url);
   }
 
