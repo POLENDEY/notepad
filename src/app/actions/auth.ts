@@ -91,7 +91,7 @@ export async function signInWithPin(
   }
 
   const next = String(formData.get("next") ?? "").trim();
-  redirect(next.startsWith("/") ? next : "/dashboard");
+  redirect(next.startsWith("/") ? next : "/notes");
 }
 
 export async function signOut() {

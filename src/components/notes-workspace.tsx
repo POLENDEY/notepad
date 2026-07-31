@@ -27,6 +27,11 @@ import {
 } from "@/lib/use-note-autosave";
 import { useNoteFontSize } from "@/lib/use-note-font-size";
 import { NoteFontSizeControls } from "@/components/note-font-size-controls";
+import {
+  MinimalNoteEditor,
+  type MinimalNoteEditorHandle,
+} from "@/components/minimal-note-editor";
+import { sanitizeNoteHtml } from "@/lib/note-html";
 
 function RefreshIcon({ spinning }: { spinning?: boolean }) {
   return (
@@ -76,7 +81,7 @@ export function NotesWorkspace({
   const [authOpen, setAuthOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const bodyRef = useRef<MinimalNoteEditorHandle>(null);
   const creatingRef = useRef(false);
   const activeIdRef = useRef<string | null>(null);
   const syncActiveAfterRefreshRef = useRef(false);
@@ -108,7 +113,7 @@ export function NotesWorkspace({
         const fresh = initialNotes.find((n) => n.id === id);
         if (fresh) {
           setTitle(fresh.title);
-          setBody(toPlainNoteBody(fresh.body));
+          setBody(sanitizeNoteHtml(fresh.body));
         }
       }
     }
@@ -146,7 +151,7 @@ export function NotesWorkspace({
     const draft = readGuestDraft();
     if (!draft) return;
     setTitle(draft.title);
-    setBody(toPlainNoteBody(draft.body));
+    setBody(sanitizeNoteHtml(draft.body));
   }, [isLoggedIn]);
 
   // Guest / pre-create local draft
@@ -157,7 +162,7 @@ export function NotesWorkspace({
         clearGuestDraft();
         return;
       }
-      saveGuestDraft({ title, body: toPlainNoteBody(body), color: "#fef9c3" });
+      saveGuestDraft({ title, body: sanitizeNoteHtml(body), color: "#fef9c3" });
     }, 300);
     return () => window.clearTimeout(t);
   }, [mounted, title, body]);
@@ -174,7 +179,7 @@ export function NotesWorkspace({
         creatingRef.current = true;
         setCreating(true);
         try {
-          const plain = toPlainNoteBody(body);
+          const plain = sanitizeNoteHtml(body);
           const id = await createNote(title.trim() || "Untitled", plain);
           setActiveId(id);
           setBody(plain);
@@ -219,7 +224,7 @@ export function NotesWorkspace({
     if (note.deleted_at) return;
     setActiveId(note.id);
     setTitle(note.title);
-    setBody(toPlainNoteBody(note.body));
+    setBody(sanitizeNoteHtml(note.body));
     setShowSaved(false);
     clearSelection();
     queueMicrotask(() => bodyRef.current?.focus());
@@ -311,7 +316,7 @@ export function NotesWorkspace({
 
   function requestPersist() {
     if (isLoggedIn) return;
-    saveGuestDraft({ title, body: toPlainNoteBody(body), color: "#fef9c3" });
+    saveGuestDraft({ title, body: sanitizeNoteHtml(body), color: "#fef9c3" });
     setAuthOpen(true);
   }
 
@@ -431,18 +436,15 @@ export function NotesWorkspace({
           className="w-full shrink-0 border-0 bg-transparent font-semibold text-stone-900 outline-none placeholder:text-stone-400 dark:text-stone-50"
           style={{ fontSize: "14px", lineHeight: 1.3 }}
         />
-        <textarea
+        <MinimalNoteEditor
           ref={bodyRef}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
+          noteKey={activeId}
+          content={body}
+          onChange={setBody}
+          fontSizePt={fontSize}
           placeholder="Start writing…"
-          spellCheck
-          className="mt-2 min-h-0 w-full flex-1 resize-none border-0 bg-transparent text-stone-800 outline-none placeholder:text-stone-400 dark:text-stone-100"
-          style={{
-            fontSize: `${fontSize}pt`,
-            lineHeight: 1.15,
-            whiteSpace: "pre-wrap",
-          }}
+          className="mt-2 text-stone-800 dark:text-stone-100"
+          autoFocus
         />
       </div>
 

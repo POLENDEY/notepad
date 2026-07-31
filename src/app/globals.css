@@ -163,6 +163,39 @@ select optgroup {
   cursor: text;
 }
 
+/* Minimal paper prose — no chrome */
+.note-paper-prose {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.note-paper-prose p {
+  margin: 0;
+}
+
+.note-paper-prose p + p {
+  margin-top: 0.35em;
+}
+
+.note-paper-prose mark {
+  background: color-mix(in srgb, #fde68a 85%, transparent);
+  color: inherit;
+  border-radius: 0.1em;
+  padding: 0 0.05em;
+}
+
+.note-paper-prose p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: #a8a29e;
+}
+
+.note-format-bubble {
+  z-index: 50;
+}
+
 /* Minimal note body scrollbar */
 .note-editor-scroll {
   --scrollbar-thumb: color-mix(in srgb, var(--foreground) 18%, transparent);

@@ -1,36 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { Note } from "@/lib/types";
-import { toPlainNoteBody } from "@/lib/note-plain-text";
+import { sanitizeNoteHtml } from "@/lib/note-html";
 import {
   autosaveLabel,
   useNoteAutosave,
 } from "@/lib/use-note-autosave";
 import { useNoteFontSize } from "@/lib/use-note-font-size";
 import { NoteFontSizeControls } from "@/components/note-font-size-controls";
+import { MinimalNoteEditor } from "@/components/minimal-note-editor";
 
 /** Standalone OS window — plain note, autosave, no chrome clutter. */
 export function NotePopout({ note }: { note: Note }) {
   const [title, setTitle] = useState(note.title);
-  const [body, setBody] = useState(() => toPlainNoteBody(note.body));
+  const [body, setBody] = useState(() => sanitizeNoteHtml(note.body));
   const { fontSize, setFontSize, shrink, grow } = useNoteFontSize();
 
   const patch = useMemo(
-    () => ({ title, body: toPlainNoteBody(body) }),
+    () => ({ title, body: sanitizeNoteHtml(body) }),
     [title, body],
   );
   const { status: saveStatus } = useNoteAutosave(note.id, patch, true, 400);
-
-  useEffect(() => {
-    document.title = note.title || "Note";
-    document.documentElement.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.documentElement.style.overflow = "";
-      document.body.style.overflow = "";
-    };
-  }, [note.title]);
 
   return (
     <div className="flex h-dvh max-h-dvh flex-col bg-[var(--background)]">
@@ -45,17 +36,7 @@ export function NotePopout({ note }: { note: Note }) {
           {autosaveLabel(saveStatus) || "Ready"}
         </span>
       </div>
-      <div
-        className="flex min-h-0 flex-1 cursor-text flex-col px-4 py-3"
-        onMouseDown={(e) => {
-          if (e.target === e.currentTarget) {
-            e.preventDefault();
-            (
-              e.currentTarget.querySelector("textarea") as HTMLTextAreaElement | null
-            )?.focus();
-          }
-        }}
-      >
+      <div className="flex min-h-0 flex-1 cursor-text flex-col px-4 py-3">
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -63,16 +44,13 @@ export function NotePopout({ note }: { note: Note }) {
           className="w-full shrink-0 border-0 bg-transparent font-semibold outline-none placeholder:text-stone-400"
           style={{ fontSize: "14px", lineHeight: 1.3 }}
         />
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
+        <MinimalNoteEditor
+          noteKey={note.id}
+          content={body}
+          onChange={setBody}
+          fontSizePt={fontSize}
           placeholder="Write…"
-          className="mt-2 min-h-0 w-full flex-1 resize-none border-0 bg-transparent outline-none placeholder:text-stone-400"
-          style={{
-            fontSize: `${fontSize}pt`,
-            lineHeight: 1.15,
-            whiteSpace: "pre-wrap",
-          }}
+          className="mt-2"
           autoFocus
         />
       </div>

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { toPlainNoteBody } from "@/lib/note-plain-text";
+import { sanitizeNoteHtml } from "@/lib/note-html";
 
 function revalidateNotes() {
   revalidatePath("/notes");
@@ -29,7 +29,7 @@ export async function createNote(title: string, body: string): Promise<string> {
     .insert({
       user_id: user.id,
       title: title.trim() || "Untitled",
-      body: toPlainNoteBody(body),
+      body: sanitizeNoteHtml(body),
       color: "#fef9c3",
     })
     .select("id")
@@ -47,7 +47,7 @@ export async function autosaveNote(id: string, patch: NoteAutosavePatch) {
     .from("notepad_notes")
     .update({
       title: patch.title.trim() || "Untitled",
-      body: toPlainNoteBody(patch.body),
+      body: sanitizeNoteHtml(patch.body),
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)

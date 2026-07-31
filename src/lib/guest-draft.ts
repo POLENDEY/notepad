@@ -1,4 +1,5 @@
-import { toPlainNoteBody } from "@/lib/note-plain-text";
+import { isPlainNoteBodyEmpty } from "@/lib/note-plain-text";
+import { sanitizeNoteHtml } from "@/lib/note-html";
 
 export const GUEST_DRAFT_KEY = "notepad-guest-draft";
 
@@ -12,10 +13,10 @@ export function saveGuestDraft(draft: GuestDraft) {
   try {
     const cleaned: GuestDraft = {
       title: draft.title,
-      body: toPlainNoteBody(draft.body),
+      body: sanitizeNoteHtml(draft.body),
       color: draft.color,
     };
-    if (!cleaned.title.trim() && !cleaned.body) {
+    if (!cleaned.title.trim() && isPlainNoteBodyEmpty(cleaned.body)) {
       localStorage.removeItem(GUEST_DRAFT_KEY);
       return;
     }
@@ -31,11 +32,10 @@ export function readGuestDraft(): GuestDraft | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as GuestDraft;
     if (typeof parsed?.title !== "string") return null;
-    const body = toPlainNoteBody(
+    const body = sanitizeNoteHtml(
       typeof parsed.body === "string" ? parsed.body : "",
     );
-    // Drop stale TipTap-only drafts like "<p></p>"
-    if (!parsed.title.trim() && !body) {
+    if (!parsed.title.trim() && isPlainNoteBodyEmpty(body)) {
       localStorage.removeItem(GUEST_DRAFT_KEY);
       return null;
     }

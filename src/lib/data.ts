@@ -1,10 +1,10 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { toPlainNoteBody } from "@/lib/note-plain-text";
+import { sanitizeNoteHtml } from "@/lib/note-html";
 import type { Note } from "@/lib/types";
 
-function asPlainNote(note: Note): Note {
-  return { ...note, body: toPlainNoteBody(note.body) };
+function asNote(note: Note): Note {
+  return { ...note, body: sanitizeNoteHtml(note.body) };
 }
 
 const NOTE_COLUMNS =
@@ -45,7 +45,7 @@ export const getNotes = cache(async (limit?: number) => {
     .order("updated_at", { ascending: false });
   if (limit) query = query.limit(limit);
   const { data } = await query;
-  return ((data ?? []) as Note[]).map(asPlainNote);
+  return ((data ?? []) as Note[]).map(asNote);
 });
 
 export const getArchivedNotes = cache(async () => {
@@ -58,7 +58,7 @@ export const getArchivedNotes = cache(async () => {
     .eq("user_id", user.id)
     .not("deleted_at", "is", null)
     .order("deleted_at", { ascending: false });
-  return ((data ?? []) as Note[]).map(asPlainNote);
+  return ((data ?? []) as Note[]).map(asNote);
 });
 
 export const getNoteById = cache(async (id: string) => {
@@ -72,5 +72,5 @@ export const getNoteById = cache(async (id: string) => {
     .eq("user_id", user.id)
     .is("deleted_at", null)
     .maybeSingle();
-  return data ? asPlainNote(data as Note) : null;
+  return data ? asNote(data as Note) : null;
 });

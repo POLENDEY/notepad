@@ -1,11 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { AUTH_COOKIE_OPTIONS } from "@/lib/supabase/auth-cookie-options";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/env";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
+    cookieOptions: AUTH_COOKIE_OPTIONS,
     cookies: {
       getAll() {
         return request.cookies.getAll();
@@ -16,12 +18,17 @@ export async function updateSession(request: NextRequest) {
         );
         supabaseResponse = NextResponse.next({ request });
         cookiesToSet.forEach(({ name, value, options }) =>
-          supabaseResponse.cookies.set(name, value, options),
+          supabaseResponse.cookies.set(name, value, {
+            ...AUTH_COOKIE_OPTIONS,
+            ...options,
+            maxAge: AUTH_COOKIE_OPTIONS.maxAge,
+          }),
         );
       },
     },
   });
 
+  // Refresh session so long-lived cookies stay valid across restarts
   const {
     data: { user },
   } = await supabase.auth.getUser();
