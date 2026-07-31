@@ -8,17 +8,36 @@ export function escapeText(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-/** Plain text → minimal TipTap-friendly HTML. */
+/** Plain text → one paragraph with accurate `<br>` line breaks (notepad-like). */
 export function plainTextToNoteHtml(raw: string): string {
   const text = raw ?? "";
-  if (!text.trim()) return "";
-  return text
-    .split(/\n{2,}/)
-    .map((block) => {
-      const inner = escapeText(block).replace(/\n/g, "<br>");
-      return `<p>${inner || "<br>"}</p>`;
-    })
-    .join("");
+  if (!text) return "";
+  const inner = escapeText(text).replace(/\n/g, "<br>");
+  return `<p>${inner}</p>`;
+}
+
+/**
+ * Collapse multiple `<p>` blocks into one paragraph with `<br>` so
+ * one Enter = one line (no fake double-spacing from stacked paragraphs).
+ */
+export function normalizeNoteLineBreaks(html: string): string {
+  const matches = [...html.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)];
+  if (matches.length <= 1) return html;
+
+  let result = "";
+  matches.forEach((m, i) => {
+    const inner = m[1] ?? "";
+    const blank =
+      !inner.replace(/<br\s*\/?>/gi, "").replace(/&nbsp;/gi, " ").trim();
+    if (i === 0) {
+      result = blank ? "" : inner;
+      return;
+    }
+    result += "<br>";
+    if (!blank) result += inner;
+  });
+
+  return `<p>${result || "<br>"}</p>`;
 }
 
 /**
@@ -52,7 +71,7 @@ export function sanitizeNoteHtml(raw: string | null | undefined): string {
     return "";
   });
 
-  return html.trim() || "";
+  return normalizeNoteLineBreaks(html.trim() || "");
 }
 
 export function noteHtmlForEditor(raw: string | null | undefined): string {

@@ -8,6 +8,7 @@ import {
 import { EditorContent, useEditor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
+import HardBreak from "@tiptap/extension-hard-break";
 import Underline from "@tiptap/extension-underline";
 import Highlight from "@tiptap/extension-highlight";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -56,6 +57,18 @@ export const MinimalNoteEditor = forwardRef<MinimalNoteEditorHandle, Props>(
           orderedList: false,
           listItem: false,
           code: false,
+          // Replaced below so Enter = one line break (notepad-accurate)
+          hardBreak: false,
+        }),
+        HardBreak.extend({
+          addKeyboardShortcuts() {
+            return {
+              // Single Enter → single line (not a new spaced paragraph)
+              Enter: () => this.editor.commands.setHardBreak(),
+              // Shift+Enter → new paragraph if ever needed
+              "Shift-Enter": () => this.editor.commands.splitBlock(),
+            };
+          },
         }),
         Underline,
         Highlight.configure({ multicolor: false }),

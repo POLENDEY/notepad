@@ -163,7 +163,7 @@ select optgroup {
   cursor: text;
 }
 
-/* Minimal paper prose — no chrome */
+/* Minimal paper prose — no chrome; line breaks match Enter presses */
 .note-paper-prose {
   white-space: pre-wrap;
   word-break: break-word;
@@ -171,10 +171,6 @@ select optgroup {
 
 .note-paper-prose p {
   margin: 0;
-}
-
-.note-paper-prose p + p {
-  margin-top: 0.35em;
 }
 
 .note-paper-prose mark {
