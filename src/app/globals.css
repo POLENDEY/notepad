@@ -167,6 +167,15 @@ select optgroup {
 .note-paper-prose {
   white-space: pre-wrap;
   word-break: break-word;
+  min-height: 100%;
+  cursor: text;
+}
+
+.note-editor-scroll .tiptap,
+.note-editor-scroll .ProseMirror {
+  min-height: 100%;
+  outline: none;
+  cursor: text;
 }
 
 .note-paper-prose p {

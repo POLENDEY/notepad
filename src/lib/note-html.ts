@@ -1,3 +1,5 @@
+import { toPlainNoteBody } from "@/lib/note-plain-text";
+
 /** Allowed inline formatting for notes (bold / italic / underline / highlight). */
 
 export function escapeText(s: string): string {
@@ -10,10 +12,19 @@ export function escapeText(s: string): string {
 
 /** Plain text → one paragraph with accurate `<br>` line breaks (notepad-like). */
 export function plainTextToNoteHtml(raw: string): string {
-  const text = raw ?? "";
+  const text = (raw ?? "").replace(/\r\n?/g, "\n");
   if (!text) return "";
   const inner = escapeText(text).replace(/\n/g, "<br>");
   return `<p>${inner}</p>`;
+}
+
+/**
+ * Inline fragment for paste into an existing note (no wrapping `<p>`).
+ * One `\n` → one `<br>` (never doubles).
+ */
+export function plainTextToInlineHtml(raw: string): string {
+  const text = (raw ?? "").replace(/\r\n?/g, "\n");
+  return escapeText(text).replace(/\n/g, "<br>");
 }
 
 /**
@@ -67,7 +78,6 @@ export function sanitizeNoteHtml(raw: string | null | undefined): string {
     if (t === "mark") {
       return full.startsWith("</") ? "</mark>" : "<mark>";
     }
-    // Drop unknown tags, keep text content
     return "";
   });
 
@@ -77,4 +87,14 @@ export function sanitizeNoteHtml(raw: string | null | undefined): string {
 export function noteHtmlForEditor(raw: string | null | undefined): string {
   const cleaned = sanitizeNoteHtml(raw);
   return cleaned || "<p></p>";
+}
+
+/** Build clipboard plain text: title + body with accurate single newlines. */
+export function noteToClipboardText(title: string, bodyHtml: string): string {
+  const body = toPlainNoteBody(bodyHtml);
+  const t = title.trim();
+  if (!t && !body) return "";
+  if (!t) return body;
+  if (!body) return t;
+  return `${t}\n\n${body}`;
 }

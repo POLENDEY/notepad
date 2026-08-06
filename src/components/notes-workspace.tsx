@@ -20,6 +20,7 @@ import {
 import {
   isPlainNoteBodyEmpty,
   toPlainNoteBody,
+  formatNoteDate,
 } from "@/lib/note-plain-text";
 import {
   autosaveLabel,
@@ -31,7 +32,7 @@ import {
   MinimalNoteEditor,
   type MinimalNoteEditorHandle,
 } from "@/components/minimal-note-editor";
-import { sanitizeNoteHtml } from "@/lib/note-html";
+import { noteToClipboardText, sanitizeNoteHtml } from "@/lib/note-html";
 
 function RefreshIcon({ spinning }: { spinning?: boolean }) {
   return (
@@ -81,6 +82,7 @@ export function NotesWorkspace({
   const [authOpen, setAuthOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [copyFlash, setCopyFlash] = useState<string | null>(null);
   const bodyRef = useRef<MinimalNoteEditorHandle>(null);
   const creatingRef = useRef(false);
   const activeIdRef = useRef<string | null>(null);
@@ -314,6 +316,18 @@ export function NotesWorkspace({
     }
   }
 
+  async function copyNoteToClipboard(noteTitle: string, noteBody: string, id?: string) {
+    const text = noteToClipboardText(noteTitle, noteBody);
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyFlash(id ?? "current");
+      window.setTimeout(() => setCopyFlash(null), 1200);
+    } catch {
+      /* ignore */
+    }
+  }
+
   function requestPersist() {
     if (isLoggedIn) return;
     saveGuestDraft({ title, body: sanitizeNoteHtml(body), color: "#fef9c3" });
@@ -393,6 +407,16 @@ export function NotesWorkspace({
             Open window
           </button>
         ) : null}
+        {(title.trim() || !isPlainNoteBodyEmpty(body)) ? (
+          <button
+            type="button"
+            onClick={() => void copyNoteToClipboard(title, body, "current")}
+            className="rounded-md px-2.5 py-1 text-xs font-medium text-stone-500 hover:bg-stone-200/70 dark:hover:bg-stone-800"
+            title="Copy note to clipboard"
+          >
+            {copyFlash === "current" ? "Copied" : "Copy"}
+          </button>
+        ) : null}
         <NoteFontSizeControls
           fontSize={fontSize}
           onChange={setFontSize}
@@ -423,10 +447,12 @@ export function NotesWorkspace({
       <div
         className="flex min-h-0 flex-1 cursor-text flex-col px-4 py-3 sm:px-6"
         onMouseDown={(e) => {
-          if (e.target === e.currentTarget) {
-            e.preventDefault();
-            bodyRef.current?.focus();
-          }
+          const t = e.target;
+          if (!(t instanceof Element)) return;
+          if (t.closest("button, input, textarea, a, .note-format-bubble")) return;
+          if (t.closest(".ProseMirror")) return;
+          e.preventDefault();
+          bodyRef.current?.focus();
         }}
       >
         <input
@@ -597,13 +623,29 @@ export function NotesWorkspace({
                           <p className="truncate text-sm font-medium text-stone-900 dark:text-stone-50">
                             {note.title || "Untitled"}
                           </p>
+                          <p className="mt-0.5 text-[10px] text-stone-400">
+                            {formatNoteDate(note.updated_at || note.created_at)}
+                          </p>
                           <p className="mt-0.5 line-clamp-2 text-[11px] text-stone-500">
                             {toPlainNoteBody(note.body) || "Empty"}
                           </p>
                         </button>
                       </div>
-                      {libraryTab === "active" ? (
-                        <div className="flex gap-2 px-3 pb-2 pl-9">
+                      <div className="flex gap-2 px-3 pb-2 pl-9">
+                        <button
+                          type="button"
+                          className="text-[11px] text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
+                          onClick={() =>
+                            void copyNoteToClipboard(
+                              note.title,
+                              note.body,
+                              note.id,
+                            )
+                          }
+                        >
+                          {copyFlash === note.id ? "Copied" : "Copy"}
+                        </button>
+                        {libraryTab === "active" ? (
                           <button
                             type="button"
                             className="text-[11px] text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
@@ -611,8 +653,8 @@ export function NotesWorkspace({
                           >
                             Window
                           </button>
-                        </div>
-                      ) : null}
+                        ) : null}
+                      </div>
                     </li>
                   );
                 })}

@@ -4,15 +4,22 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useRef,
 } from "react";
-import { EditorContent, useEditor } from "@tiptap/react";
+import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import HardBreak from "@tiptap/extension-hard-break";
 import Underline from "@tiptap/extension-underline";
 import Highlight from "@tiptap/extension-highlight";
 import Placeholder from "@tiptap/extension-placeholder";
-import { noteHtmlForEditor, sanitizeNoteHtml } from "@/lib/note-html";
+import {
+  escapeText,
+  noteHtmlForEditor,
+  plainTextToInlineHtml,
+  sanitizeNoteHtml,
+} from "@/lib/note-html";
+import { toPlainNoteBody } from "@/lib/note-plain-text";
 
 export type MinimalNoteEditorHandle = {
   focus: () => void;
@@ -23,7 +30,6 @@ type Props = {
   onChange: (html: string) => void;
   fontSizePt: number;
   placeholder?: string;
-  /** Remount / sync when switching notes */
   noteKey?: string | null;
   className?: string;
   autoFocus?: boolean;
@@ -31,6 +37,15 @@ type Props = {
 
 const bubbleBtn =
   "inline-flex size-7 items-center justify-center rounded text-[12px] font-medium text-stone-600 transition hover:bg-stone-200/80 data-[active=true]:bg-stone-900 data-[active=true]:text-white dark:text-stone-300 dark:hover:bg-stone-700 dark:data-[active=true]:bg-stone-100 dark:data-[active=true]:text-stone-900";
+
+function isInteractiveTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false;
+  return Boolean(
+    target.closest(
+      "button, input, textarea, a, label, select, .note-format-bubble",
+    ),
+  );
+}
 
 export const MinimalNoteEditor = forwardRef<MinimalNoteEditorHandle, Props>(
   function MinimalNoteEditor(
@@ -45,6 +60,8 @@ export const MinimalNoteEditor = forwardRef<MinimalNoteEditorHandle, Props>(
     },
     ref,
   ) {
+    const editorRef = useRef<Editor | null>(null);
+
     const editor = useEditor({
       immediatelyRender: false,
       extensions: [
@@ -57,15 +74,12 @@ export const MinimalNoteEditor = forwardRef<MinimalNoteEditorHandle, Props>(
           orderedList: false,
           listItem: false,
           code: false,
-          // Replaced below so Enter = one line break (notepad-accurate)
           hardBreak: false,
         }),
         HardBreak.extend({
           addKeyboardShortcuts() {
             return {
-              // Single Enter → single line (not a new spaced paragraph)
               Enter: () => this.editor.commands.setHardBreak(),
-              // Shift+Enter → new paragraph if ever needed
               "Shift-Enter": () => this.editor.commands.splitBlock(),
             };
           },
@@ -75,16 +89,79 @@ export const MinimalNoteEditor = forwardRef<MinimalNoteEditorHandle, Props>(
         Placeholder.configure({ placeholder }),
       ],
       content: noteHtmlForEditor(content),
+      onCreate: ({ editor: ed }) => {
+        editorRef.current = ed;
+      },
       editorProps: {
         attributes: {
           class:
-            "note-paper-prose min-h-full w-full outline-none focus:outline-none",
+            "note-paper-prose tiptap min-h-full w-full outline-none focus:outline-none",
+        },
+        // One visual line → one `\n` when copying as plain text
+        clipboardTextSerializer: (slice) =>
+          slice.content.textBetween(0, slice.content.size, "\n", "\n"),
+        handlePaste: (_view, event) => {
+          const clip = event.clipboardData;
+          if (!clip) return false;
+          const html = clip.getData("text/html");
+          const text = clip.getData("text/plain");
+          if (!html && !text) return false;
+          // Paste as inline + <br> only — never create extra paragraphs
+          const plain = html
+            ? toPlainNoteBody(sanitizeNoteHtml(html))
+            : text.replace(/\r\n?/g, "\n");
+          event.preventDefault();
+          editorRef.current?.commands.insertContent(
+            plainTextToInlineHtml(plain),
+          );
+          return true;
+        },
+        handleDOMEvents: {
+          copy(view, event) {
+            const clip = event.clipboardData;
+            if (!clip || view.state.selection.empty) return false;
+            const text = view.state.doc.textBetween(
+              view.state.selection.from,
+              view.state.selection.to,
+              "\n",
+              "\n",
+            );
+            clip.setData("text/plain", text);
+            clip.setData(
+              "text/html",
+              `<meta charset="utf-8"><p>${escapeText(text).replace(/\n/g, "<br>")}</p>`,
+            );
+            event.preventDefault();
+            return true;
+          },
+          cut(view, event) {
+            const clip = event.clipboardData;
+            if (!clip || view.state.selection.empty) return false;
+            const text = view.state.doc.textBetween(
+              view.state.selection.from,
+              view.state.selection.to,
+              "\n",
+              "\n",
+            );
+            clip.setData("text/plain", text);
+            clip.setData(
+              "text/html",
+              `<meta charset="utf-8"><p>${escapeText(text).replace(/\n/g, "<br>")}</p>`,
+            );
+            event.preventDefault();
+            view.dispatch(view.state.tr.deleteSelection().scrollIntoView());
+            return true;
+          },
         },
       },
       onUpdate: ({ editor: ed }) => {
         onChange(sanitizeNoteHtml(ed.getHTML()));
       },
     });
+
+    useEffect(() => {
+      editorRef.current = editor;
+    }, [editor]);
 
     useImperativeHandle(
       ref,
@@ -112,7 +189,7 @@ export const MinimalNoteEditor = forwardRef<MinimalNoteEditorHandle, Props>(
     if (!editor) {
       return (
         <div
-          className={`min-h-0 flex-1 ${className}`}
+          className={`min-h-0 flex-1 cursor-text ${className}`}
           style={{ fontSize: `${fontSizePt}pt`, lineHeight: 1.15 }}
         />
       );
@@ -120,13 +197,15 @@ export const MinimalNoteEditor = forwardRef<MinimalNoteEditorHandle, Props>(
 
     return (
       <div
-        className={`note-editor-scroll relative min-h-0 flex-1 overflow-y-auto ${className}`}
+        className={`note-editor-scroll relative min-h-0 flex-1 cursor-text overflow-y-auto ${className}`}
         style={{ fontSize: `${fontSizePt}pt`, lineHeight: 1.15 }}
         onMouseDown={(e) => {
-          if (e.target === e.currentTarget) {
-            e.preventDefault();
-            editor.commands.focus("end");
+          if (isInteractiveTarget(e.target)) return;
+          if (e.target instanceof Element && e.target.closest(".ProseMirror")) {
+            return;
           }
+          e.preventDefault();
+          editor.commands.focus("end");
         }}
       >
         <BubbleMenu
@@ -177,7 +256,7 @@ export const MinimalNoteEditor = forwardRef<MinimalNoteEditorHandle, Props>(
             </span>
           </button>
         </BubbleMenu>
-        <EditorContent editor={editor} className="min-h-full" />
+        <EditorContent editor={editor} className="min-h-full h-full" />
       </div>
     );
   },
